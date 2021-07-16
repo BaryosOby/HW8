@@ -1,0 +1,16 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/baryos/Documents/MATAM/HW8/Encoder.h
+
+/home/baryos/Documents/MATAM/HW8/main.c
+stdio.h
+-
+Encoder.h
+/home/baryos/Documents/MATAM/HW8/Encoder.h
+
