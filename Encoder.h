@@ -3,6 +3,8 @@
 
 #define MAX_CHARS 16
 #define MAX_LEN 1000
+#include <stdio.h>
+#include <assert.h>
 
 
 /** dictionary struct is purposed to hold information about each line in the file.*/
@@ -18,7 +20,9 @@ typedef struct dictionary{
     int values[256];
 }Dict;
 
-void wordsSwap(FILE *path, FILE *dest);
+FILE* createOutputFile(char* inputName,char* end, char* operation);
+
+int flipFile(FILE* input,FILE* output);
 
 void azbySwap(FILE *path, FILE *dest);
 

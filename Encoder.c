@@ -1,82 +1,87 @@
 #include <stdio.h>
-#include <stdbool.h>
 #include <string.h>
+#include <assert.h>
 #include "matam.h"
 #include "Encoder.h"
 
 /*in all the functions in the module
  * it been assumed that files has been opened and checked, and will be closed.*/
-
-
-FILE* createOutPutFile(char* inputName) {
+FILE* createOutputFile(char* inputName,char* end, char* operation) {
     char *outputName, *ext;
     FILE* outPut;
     outputName = ALLOC(char ,strlen (inputName) + 1);
     strcpy (outputName, inputName);
     ext = strrchr (outputName, '.');
     if (ext != NULL)
-        strcpy(ext,".rpl");
-    outPut = fopen(outputName,"w");
+        strcpy(ext,end);
+    outPut = fopen(outputName,operation);
+    assert(outPut);
     FREE(outputName);
     return outPut ;
 }
 
 
-/*help function to find a word's length*/
-int wordLen(FILE *path, long *start){
-    /*word is defined as all characters between white space, including separators.
-     * if we are here, no periods should be found.*/
-    char c;
-    int len = 0;
-    fseek(path, -1, SEEK_CUR);
-    c = fgetc(path); /*gets the last char that is not a period*/
-    while(c != ' ' && c!= '\n'){
-        fseek(path, -1, SEEK_CUR);
-        if(ftell(path) == 0){ /*check for the last char (the first in original file)*/
-            len++;
-            *start = 0; /*finish to read the file.*/
-            break;
-        }
-        fseek(path, -1, SEEK_CUR);
-        c = fgetc(path);
-        len++;
+void getSentence(FILE* input,char* temp){
+    char curr;
+    int count =0;
+    fseek(input,-1,SEEK_CUR);
+    while ((curr = fgetc(input))!='.'){
+        if (curr==EOF){break;}
+        if (curr =='\n'|| curr==' '){
+            if (count==0){continue;}
+            curr=' ';}
+        if (curr=='\r'){continue;}
+        temp[count] = curr;
+        count++;
     }
+    temp[count]='\0';
+}
 
+int wordLen(char* str,int index){
+    int len = 0;
+    while (str[index]!=' '&& index >=0){
+        len++;
+        index--;
+    }
     return len;
 }
 
-void wordsSwap(FILE *path, FILE *dest){
-    File output = char c;
-    bool flag = false;
-    long start;
-    int count, i;
-    fseek(path, -1, SEEK_END); /*one step back from EOF*/
-    start = ftell(path);
-    while(start != 0){
-        c = fgetc(path);
-        if(c == '.'){
-            if(flag == true){
-                fputc(c, dest); /*will put a period in the end of every new sentence, and go down a line.*/
-                fputc('\n', dest);
-            }
-            else{
-                flag= true;
-            }
-            fseek(path, -2, SEEK_CUR);
-        }
-        else {
-            count = wordLen(path, &start);
-            c = fgetc(path);
-            for (i = 0; i < count; i++) { /*writes the word by its length*/
-                fputc(c, dest);
-                c = fgetc(path);
-            }
-            fputc(' ', dest);
-            fseek(path, -(count + 3), SEEK_CUR); /*jumps to the previous word.*/
-        }
+void printToFile(FILE* output,char* temp) {
+    int index = strlen(temp)-1, currWordLen, i,strLen=index;
+    char curr;
+    if (index<0){return;}
+    if(ftell(output) != 0){
+        fputc('\n', output);
     }
+    while (index >= 0) {
+        currWordLen = wordLen(temp, index);
+        index += -currWordLen+1;
+        for (i = 0; i < currWordLen; i++) {
+            curr=temp[i+index];
+            fputc(curr, output);
+        }
+        index -= 2;
+        if (index>=0){putc(' ',output);}
+    }
+    fputc('.',output);
+    for (i=0;i<strLen;i++){temp[i]='\0';}
 }
 
+int flipFile(FILE* input,FILE* output) {
+    char temp[1001];
+    if (!input||!output) {
+        puts("couldn't open this file");
+        return -1;
+    }
+
+    while ((fgetc(input))!=EOF){
+        getSentence(input,temp);
+        printToFile(output,temp);
+
+    }
+    fseek(output,0,SEEK_SET);
+    return 1;
+}
 
 void azbySwap(FILE *path, FILE *dest){
     /*the function runs from two directions until half point.
@@ -103,27 +108,24 @@ void azbySwap(FILE *path, FILE *dest){
         c = fgetc(path);
         fputc(c, dest);
     }
+    fseek(dest, 0, SEEK_SET);
 }
 
-bool isInArr(char ch, char arr[], int size){
+void initMinOne(int* arr, int size){
     int i;
-    for(i = 0; i<size; i++){
-        if(arr[i] == ch){
-            return true;
-        }
+    for (i=0; i<size; i++){
+        arr[i] = -1;
     }
-    return false;
 }
 
 int charsDict(char* line, Dict *dict, int size){
-    int i, count = 0;
-    while(*line != '.' || count < size){
-        for(i=0; i<size; i++){
-            if(dict->values[*line] == 0){
-                count++;
-                dict->keys[i] = *line;
-                dict->values[*line] = count;
-            }
+    int i = 0, count = 0;
+    while(*line != '.' && count < size){
+        if(dict->values[(int)*line] == -1){
+            dict->keys[i] = *line;
+            dict->values[(int)*line] = count;
+            count++;
+            i++;
         }
         line++;
     }
@@ -136,7 +138,7 @@ int strToBinary(FILE *path, FILE *dest){
     char line[MAX_LEN+1], *encrypted, ch;
     Dict dict;
     while(fgets(line, MAX_LEN, path)) {
-        memset(dict.values, 0, 256);
+        initMinOne((int *) &(dict.values), 256);
         memset(dict.keys, 0, MAX_CHARS);
         count = charsDict(line, &dict, MAX_CHARS);
         if(count == -1){
@@ -144,20 +146,20 @@ int strToBinary(FILE *path, FILE *dest){
             printf("problem in line: %s", line);
             exit(1);
         }
+        line[count] = '\0';
         len = strlen(line);
         encrypted = ALLOC(char, len/2);
 
         /*takes every two chars in values[] and creates new char from their numeric values.*/
         for(i = 0; i<len; i+=2){
-            ch = (char)( ((dict.values[line[i]] -1) <<4 ) + (dict.values[line[i+1]] -1) );
+            ch = (char)( (dict.values[(int)line[i]] <<4 ) + (dict.values[(int)line[i+1]] ) );
             encrypted[i] = ch;
         }
-        ch = '\n';
         fwrite(&count, sizeof (int), 1, dest); /*print to file count. */
         fwrite(&(dict.keys), sizeof (char), count, dest); /*print to file keys[] objects.*/
         fwrite(encrypted, sizeof (char), len/2, dest); /*print to file encrypted. */
-        fwrite(&ch, sizeof (char), 1, dest); /*go down a line. */
     }
+    return 1;
 }
 
 

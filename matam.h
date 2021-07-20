@@ -12,4 +12,4 @@ void check_for_exit();/*check if all allocations free*/
 #define ALLOC(typ,no) ((typ *) checked_malloc(sizeof(typ)*(no)))
 #define FREE(ptr) checked_free(ptr)
 
-#endif  // MATAM_H
+#endif
